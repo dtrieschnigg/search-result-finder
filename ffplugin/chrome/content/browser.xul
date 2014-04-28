@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<?xml-stylesheet href="SearchResultFinder/searchresultfinder.css" type="text/css"?>
+<?xml-stylesheet href="SearchResultFinder/gui/jquery-ui-1.8.12.custom.css" type="text/css"?>
+<!DOCTYPE linktargetfinder SYSTEM "chrome://searchresultfinder/locale/translations.dtd">
+
+<overlay id="sample" xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">
+		<!--
+		<script src="SearchResultFinder/jquery.js"></script>
+		<script src="SearchResultFinder/gui/jquery-ui-1.8.12.custom.min.js"></script>
+		<script src="SearchResultFinder/jshashtable-2.1.js"></script>
+		<script src="SearchResultFinder/searchresultfinder.js"></script>
+		<script src="SearchResultFinder/searchresultfindergui.js"></script>
+		-->
+		<script src="main.js"></script>
+
+		<menupopup id="menu_ToolsPopup">
+			<menuitem label="&runsearchresultfinder;" key="link-search-result-finder-run-key" oncommand="searchresultfinder.run()"/>
+		</menupopup>
+
+		<toolbarpalette id="BrowserToolbarPalette">
+			<toolbarbutton id="link-search-result-finder-toolbar-button" label="&runsearchresultfinder;" tooltiptext="&runsearchresultfinder;" oncommand="searchresultfinder.run()"/>
+		</toolbarpalette>
+		
+		<popup id="contentAreaContextMenu">
+		  <menuitem id="search-result-finder-popup" label="&runsearchresultfinder;" oncommand="searchresultfinder.run()" />
+		</popup>
+		
+</overlay>

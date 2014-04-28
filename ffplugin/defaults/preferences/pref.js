@@ -1,0 +1,1 @@
+pref("extensions.searchresultfinder.autorun", false);

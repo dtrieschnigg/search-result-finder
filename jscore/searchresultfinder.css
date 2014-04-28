@@ -1,0 +1,89 @@
+/*
+* CSS for search result finder
+*
+* Author   : Dolf Trieschnigg
+* $Id$
+* $Revision$
+* $Date$
+*/
+#srf_dialog, #srf_dialog *{
+	font-family: Verdana,Arial,sans-serif;
+	font-size: 8pt;
+	font-weight: 400;
+	font-style:	normal;
+	color: black;
+	text-transform:	none;
+	text-decoration: none;
+	letter-spacing: normal;
+	word-spacing: 0;
+	line-height: 1.2; /* correct? */
+	text-align:	left;
+	vertical-align:	baseline;
+	direction: ltr;
+	opacity: 1;
+	cursor:	auto;
+	marker-offset:	auto;
+}
+
+#srf_dialog {
+	height: 600px;
+	margin: 0px;
+	padding: 0px;
+	overflow: hidden;
+	margin: 0;
+	border: solid 1px #AAAAAA;
+	padding: 2px;
+}
+
+#srf_tabs {
+	width: 98%; 
+	height: 98%;
+	margin: 0px;
+	padding: 0px;
+}
+
+.srf_tab {
+	margin: 0px;
+	padding: 0px;
+	overflow: auto;
+	height: 80%;
+}
+
+#srf_xpathtable {
+	width: 100%;
+	border: solid 1px black;
+}
+
+#srf_xpathtable, #srf_xpathtable td{
+	font-size: 7pt;
+	font-style: normal;
+	text-align: left;
+	line-height: 80%;
+}
+
+#srf_xpathtable input {
+	width: 8px;
+	height: 8px;	
+}
+
+#srf_xpathtable td {
+	margin: 0px;
+	padding: 0px;
+	border-width: 0px;
+}
+
+#srf_tablog {
+	font-family: monospace;	
+}
+
+.srf_highlightnode {
+	text-align: right;
+}
+
+.srf_highlightnode span {
+	text-align: right;
+	background-color: white;
+	font-size: 10pt;
+	color: black;
+	font-family:sans-serif;
+}
