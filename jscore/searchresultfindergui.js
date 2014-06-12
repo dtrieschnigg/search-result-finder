@@ -93,11 +93,19 @@ SearchResultFinder.Gui.Dialog.prototype = {
 			} else {
 				jQuerySRF(this).css("background-color", "");
 			}
-			jQuerySRF('#srf_manual_length').text(nodes.length);
+			jQuerySRF('#srf_manual_length').text(nodes.length).dblclick(function () {
+				var nicer = new SearchResultFinder.Nicer({nodes:nodes});
+				nicer.getNicerXPath();
+			});
 			this['highlighter'].setNodes(nodes); 
-		}
+		};
 		manualinput.change(manualInputChange);
 
+		jQuerySRF('#srf_manual_length').dblclick(function () {
+			var nicer = new SearchResultFinder.Nicer({nodes : $(this)[0].highlighter.getNodes() });
+			nicer.getNicerXPath();
+		});
+		
 		var nodesClick = function() {
 			// alert("nodes click");
 			var str = "";
@@ -117,6 +125,13 @@ SearchResultFinder.Gui.Dialog.prototype = {
 			alert(str);
 		}
 
+		var alternativeXPath = function () {
+			var w = this['wrapper'];
+			
+			var nicer = new SearchResultFinder.Nicer(w);
+			nicer.getNicerXPath();
+		};
+		
 		if (wrappers.length > 0) {
 			for (var i in wrappers) {
 				var w = wrappers[i];
@@ -125,7 +140,14 @@ SearchResultFinder.Gui.Dialog.prototype = {
 				var input = jQuerySRF("<input type='checkbox'/>", this.doc);
 				cell.append(input);
 				row.append(cell);
-				row.append("<td nowrap>" + w.xpath + "</td>");
+				
+				var xpath = jQuerySRF("<td nowrap><span>" + w.xpath + "</span></td>");
+				var xpath_span = xpath.find('span');
+				xpath_span[0].wrapper = w;
+				xpath_span.click(alternativeXPath);
+				
+				row.append(xpath);
+				
 				var cell = jQuerySRF("<td/>", this.doc);
 				var span = jQuerySRF("<span>", this.doc);
 				// span.css("text-decoration", "underline");
@@ -188,8 +210,8 @@ SearchResultFinder.Gui.Dialog.prototype = {
 					resizable: true, 
 					draggable: true, 
 					position: ['right','top'],
-					height: "300",
-					width: "450",
+					height: "500",
+					width: "700",
 					zIndex: 2147483647, // the maximum possible ;-),
 					close: this.onDialogClose
 			});

@@ -6,7 +6,7 @@
 * $Revision$
 * $Date$
 */
-#srf_dialog, #srf_dialog *{
+#srf_dialog, #srf_dialog *[not(class*="ui")] {
 	font-family: Verdana,Arial,sans-serif;
 	font-size: 8pt;
 	font-weight: 400;
@@ -20,9 +20,13 @@
 	text-align:	left;
 	vertical-align:	baseline;
 	direction: ltr;
-	opacity: 1;
+	opacity: 1 !important;
 	cursor:	auto;
 	marker-offset:	auto;
+	height: auto;
+	width: auto;
+	padding: 0;
+	margin: 0;
 }
 
 #srf_dialog {
@@ -33,6 +37,8 @@
 	margin: 0;
 	border: solid 1px #AAAAAA;
 	padding: 2px;
+	
+	font-size: 8pt;
 }
 
 #srf_tabs {
@@ -54,22 +60,33 @@
 	border: solid 1px black;
 }
 
-#srf_xpathtable, #srf_xpathtable td{
+#srf_xpathtable, #srf_xpathtable td {
 	font-size: 7pt;
 	font-style: normal;
 	text-align: left;
 	line-height: 80%;
 }
+#srf_xpathtable td span {
+	cursor: pointer;
+}
 
-#srf_xpathtable input {
+#srf_xpathtable input[type="checkbox"] {
 	width: 8px;
 	height: 8px;	
 }
+#srf_xpathtable input[type="text"] {
+	height: 12px;	
+	padding: 3px;
+	min-width: 300px;
+	font-size: 8pt;
+}
+
 
 #srf_xpathtable td {
 	margin: 0px;
-	padding: 0px;
 	border-width: 0px;
+	padding: 3px;
+	color: #000;
 }
 
 #srf_tablog {
