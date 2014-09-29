@@ -39,6 +39,12 @@
     		return bound;
   		};
 	}
+	
+	if (!String.prototype.endsWith) {
+		String.prototype.endsWith = function(str) {
+			return (this.match(str+"$")==str)
+		}
+	}
 }
 
 var SearchResultFinder = {};
@@ -1571,8 +1577,358 @@ SearchResultFinder.Helper.nodesToSnippetsXml = function(id, doc, nodes, time, xp
 	return str.replace(/\s*xmlns=\"[^\"]*?\"\s*/, " ");
 }
 
+/**
+* Generate a nicer XPath by using the Nodes a XPath has generated
+* Author: Han van der Veen
+*/
+SearchResultFinder.Nicer = function (wrapper) {
+	
+	this.wrapper = wrapper;
+	this.DEBUG = false;
+	this.max_level = 10;
+	
+	/**
+	 * Parse the attributes of a certain node and get a node with the attributes
+	 * @param node
+	 * @returns {Array}
+	 */
+	function parseAttributes(node) {
+		var node_ids = [node.nodeName.toLowerCase()];
+		for(var i = 0, len = node.attributes.length; i < len; i++) {
+			var attr = node.attributes[i];
+			var n = node.nodeName.toLowerCase()+"[@"+attr.name+"='"+attr.nodeValue+"']";
+			node_ids.push(n);
+		}
+		return node_ids;
+	}
+	
+	/**
+	* Child of a certain parent Node and ancestors
+	* 
+	* <ul class="result"> <li> ...</li> ...</ul>
+	*
+	* @return array
+	* 
+	* http://www.mediamarkt.nl/webapp/wcs/stores/servlet/MultiChannelSearch?storeId=10259&langId=-11&searchProfile=onlineshop&searchParams=&path=&query=tablet
+	*/
+	this.case1 = function (w) {
+		var xpaths = [];
+		var parent = w.nodes[0].parentNode;
+		var _parent = parent;
+		
+		var child_name = w.nodes[0].nodeName.toLowerCase();
+		
+		var _level = 0;
+		while(_parent.nodeName != 'HTML' && _level < this.max_level) {
+			
+			var nodes = parseAttributes(_parent);
+			for(var i = 0; i < nodes.length; i++) {
+				var path = '//'+nodes[i];
+				var inner_path = '';
+				
+				// build path from parent of child to the current parent in the loop
+				// only consider the nodeName in this path
+				var child = parent;
+				while(child != _parent) {
+					inner_path = '/'+ child.nodeName.toLowerCase() + inner_path;
+					child = child.parentNode;
+				}
+				xpaths.push(path + inner_path + '/'+child_name);
+			}
+			
+			_level++;
+			_parent = _parent.parentNode;
+		}
+		
+		return xpaths;
+	};
+	
+	/**
+	* Node self is identified by attributes
+	* <ul> 
+	* 	<li class="result"> ... </li>
+	* </ul>
+	*
+	* @return array
+	* 
+	* http://azerty.nl/producten/zoek/?scope=artikelen&ZOEKTERMEN=intel+i7&zoek=+
+	* http://www.ebay.com/sch/i.html?_trksid=p5360.m570.l1313.TR0.TRC0.H0.Xnokia&_nkw=nokia&_sacat=0&_from=R40
+	*/
+	this.case2 = function (w, contains) {
+		var xpaths = [];
+		var nodes = w.nodes;
+		var attributes = [];
+		
+		var node = nodes[0];
+		for(var j = 0, attr_len = node.attributes.length; j < attr_len; j++) {
+			var n = node.attributes[j].name;
+			if(contains) {
+				node.attributes[j].nodeValue.split(' ').forEach(function (v) {
+					attributes.push({
+						name : n,
+						value : v
+					});
+				});
+			} else {
+				attributes.push({
+					name : n,
+					value : node.attributes[j].nodeValue
+				});
+			}
+			
+		}
+	
+		
+		for(var attr_key in attributes) {
+			
+			var attr = attributes[attr_key];
+			
+			if(this.theSameAttribute(nodes, attr.name, attr.value, contains)) {
+				if(contains)
+					xpaths.push('//'+nodes[0].nodeName.toLowerCase()+'[contains(@'+attr.name+',"'+attr.value+'")]');
+				else
+					xpaths.push('//'+nodes[0].nodeName.toLowerCase()+'[@'+attr.name+'="'+attr.value+'"]');
+			}			
+			
+		}
+		
+		return xpaths;
+	};
+	
+	/**
+	 * Checks wheter on all nodes the callback is true
+	 * @param function callback check callback must return true or false
+	 * @return boolean
+	 */
+	this.theSame = function (nodes, callback) {
+		
+		var result = true;
+		
+		for(var i = 0, len = nodes.length; result && i < len; i++) {
+			if(!callback(nodes[i])) {
+				result = false;
+			}
+		}
+		
+		return result;
+	};
+	
+	/**
+	 * Uses the function the same this function is like a forAll with a callback that must be true
+	 */
+	this.theSameAttribute = function (nodes, attribute, value, contains) {
+		
+		return this.theSame(nodes, function (node) {
+			var result = false;
+			
+			for(var i = 0, len = node.attributes.length; !result && i < len; i++) {
+				var v = node.attributes[i].nodeValue;
+				var match = contains ? v.split(' ').indexOf(value) !== -1 : v === value;  
+				if(node.attributes[i].name === attribute && match) {
+					result = true;
+				}
+			}
+			
+			return result;
+		});
+	};
+	
+	/**
+	* Child structure is the identifier
+	*
+	* <li> <h3><a>test</a></h3> </li>
+	*
+	* @return array
+	*/
+	this.case3 = function (w) {
+		// going to search for h[0-9] and a
+		var xpaths = [];
+		
+		// assuming that the structure of all nodes are sort of the same
+		
+		var structures = [];
+		var node = jQuerySRF(w.nodes[0]);
+		
+		// searching for <h3><a> and <a><h3>
+		var els = node.find('h1, h2, h3, h4, h5, h6, a');
+		
+		for(var j = 0; j < els.length; j++) {
+			var el = jQuerySRF(els[j]);
+			
+			// h3 > a
+			if(el.find('> a').length == 1) {
+				structures.push('//'+el[0].nodeName.toLowerCase()+'/a');
+			// a > h3
+			} else if(el.parent().is('a')) {
+				structures.push('//a/'+el[0].nodeName.toLowerCase());
+			} 
+			
+			// complete path to h3
+			var path = '';
+			var p = el[0];
+			while(p !== w.nodes[0]) {
+				path = p.nodeName.toLowerCase()+'/'+path;
+				p = p.parentNode;
+			}
+			structures.push('/'+path.substring(0, path.length - 1));
+		};
+		
+		for(var i = 0; i < structures.length; i++) {
+			var struct = structures[i];
+			xpaths.push('//'+w.nodes[0].nodeName.toLowerCase()+'[.'+struct+']');
+		}
+		
+		return xpaths;
+	};
+	
+	// parent en identified child
+	// http://www.bestbuy4you.nl/search/?q={q}
+	this.case4 = function (w) {
+		
+		var c1 = this.case1(w);
+		var c2 = this.case2(w).concat(this.case2(w, true));
+		var xpaths = [];
+		
+		for(var i = 0; i < c1.length; i++) {
+			for(var j = 0; j < c2.length; j++) {
+				var xpath = c1[i].split('/').slice(0, -1).join('/')+'/'+c2[j].substring(2);
+				xpaths.push(xpath);
+			}
+		}
+		return xpaths;
+	};
+		
+	// parent en identified on children structure
+	this.case5 = function (w) {
+		var c1 = this.case1(w);
+		var c3 = this.case3(w);
+		var xpaths = [];
+		
+		for(var i = 0; i < c1.length; i++) {
+			for(var j = 0; j < c3.length; j++) {
+				var xpath = c1[i].split('/').slice(0, -1).join('/')+'/'+c3[j].substring(2);
+				xpaths.push(xpath);
+			}
+		}
+		return xpaths; 
+	};
+};
+/**
+ * Get a nicer XPath
+ * 
+ * @return string
+ */
+SearchResultFinder.Nicer.prototype.getNicerXPath = function () {
+	var paths = [this.wrapper.xpath];
+	paths = paths.concat(this.case1(this.wrapper, 1));
+	paths = paths.concat(this.case2(this.wrapper));
+	paths = paths.concat(this.case2(this.wrapper, true));		
+	paths = paths.concat(this.case3(this.wrapper));	
+	paths = paths.concat(this.case4(this.wrapper));	
+	paths = paths.concat(this.case5(this.wrapper));	
+	if(this.DEBUG) 
+		console.log('potential matches', paths);
+	
+	var correct_xpaths = [];
+	// check xpaths
+	for(var i = 0; i < paths.length; i++) {
+		var xpath = paths[i];
+		// check if results are the same for an xpath
+		var result = SearchResultFinder.Helper.getNodes(document, xpath);
+		if(result != null && this.wrapper.nodes.length === result.length && this.wrapper.nodes[0] == result[0] && this.wrapper.nodes[this.wrapper.nodes.length - 1] == result[result.length -1]) {
+			correct_xpaths.push({
+				xpath : xpath,
+				data : this.score(xpath)
+			});
+		} else {
+			if(this.DEBUG) 
+				console.log('wrong xpath: '+xpath);
+		}
+	}	
+	
+	var max_vector = [0,0,0,0,0];
+	for(var i = 0; i < correct_xpaths.length; i++) {
+		for(var j = 0; j < max_vector.length; j++) {
+			if(max_vector[j] < correct_xpaths[i].data[j]) {
+				max_vector[j] = correct_xpaths[i].data[j];
+			}
+		}
+	}
+	
+	for(var i = 0; i < correct_xpaths.length; i++) {
+		var d = correct_xpaths[i].data;
+		
+		for(var j = 0; j < max_vector.length; j++) {
+			if(max_vector[j] > 0)
+				d[j] = d[j] / max_vector[j];
+		}
+		
+		d[0] = 1 - d[0];
+		d[3] = 1 - d[3];
+		d[4] = 1 - d[4];
+		
+		d[0] *= 1.3; // weights
+		d[3] *= 1.2;
+		
+		correct_xpaths[i].score = Math.sqrt(d.map(function (a) {
+			return a * a;
+		}).reduce(function (a,b) {
+			return a + b;
+		}));
+	}
+	
+	correct_xpaths.sort(function (a, b) {
+		return a.score < b.score ? 1 : -1;
+	});
+	
+	// top 5
+	var str = "";
+	correct_xpaths.slice(0, 25).forEach(function (v) {
+		str += v.xpath + ' ('+Math.round(v.score*100)/100+')'+"\n";
+	});
+	alert(str);
+};
 
-if (!String.prototype.endsWith) {
-String.prototype.endsWith = function(str)
-{return (this.match(str+"$")==str)}
-}
+/**
+ * Apply guidelines to an XPath and give a score of niceness.
+ * @param xpath
+ * @returns {Array} score of an Xpath
+ */
+SearchResultFinder.Nicer.prototype.score = function (xpath) {
+	
+	// Guideline: less steps is better
+	// max 10
+	var steps = 0;
+	var sub_steps = 0;
+	(function () {
+		var brackets = 0;
+		for(var i = 0; i < xpath.length; i++) {
+			var char = xpath.charAt(i);
+			if(char == '[') brackets++;
+			if(char == ']') brackets--;
+			if(char == '/') {
+				if(brackets == 0) {
+					steps++;
+				} else {
+					sub_steps++;
+				}
+			} 
+		}
+	})();
+		
+	// Guideline: @class and @itemprop are better
+	// max = 3
+	var properties = 0;	
+	if(xpath.indexOf('@') > -1) properties++;
+	
+	// Guideline: some words are in it, are better => self describtive
+	// max = 5
+	var matching_words = ['result','item','product','list','offer', 'article', 'lijst'];
+	var words = 0;
+	matching_words.forEach(function (w) {
+		if(xpath.toLowerCase().indexOf(w) > -1) 
+			words++;
+	});
+	
+	return [xpath.length, properties, words > 0 ? 1 : 0, steps, sub_steps];
+};
